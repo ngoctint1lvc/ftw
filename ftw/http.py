@@ -476,7 +476,7 @@ class HttpUA(object):
             if our_data and time.time() - begin > self.HTTP_TIMEOUT:
                 break
             # If we're dataless wait just a bit
-            elif time.time() - begin > self.HTTP_TIMEOUT * 2:
+            elif time.time() - begin > self.HTTP_TIMEOUT + 10:
                 break
             # Recv data
             try:
