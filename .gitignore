@@ -33,3 +33,6 @@ venv/*
 
 # Ignore test cache
 test/.cache/*
+
+# Ignore ide file
+.vscode

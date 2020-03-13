@@ -1,5 +1,9 @@
 from __future__ import print_function
 import datetime
+from typing import Any, List, Tuple, cast
+from ftw.ruleset import Stage
+from ftw.http import HttpUA
+from ftw.logchecker import LogChecker
 from dateutil import parser
 import pytest
 import sqlite3
@@ -9,7 +13,6 @@ from six import ensure_str
 from . import errors
 from . import http
 from . import util
-
 
 class TestRunner(object):
     """
@@ -170,40 +173,48 @@ class TestRunner(object):
                                     end, response, status, i))
                 conn.commit()
 
-    def run_stage(self, stage, logger_obj=None, http_ua=None):
+    def run_stage(self, stage: Stage, logger_obj: LogChecker = None, http_ua: HttpUA = None) -> Tuple[bool, str]:
         """
         Runs a stage in a test by building an httpua object with the stage
         input, waits for output then compares expected vs actual output
         http_ua can be passed in to persist cookies
         """
 
-        # Send our request (exceptions caught as needed)
-        if stage.output.expect_error:
-            with pytest.raises(errors.TestError) as excinfo:
+        result = True
+        lines: Any = []
+
+        try:
+            # Send our request (exceptions caught as needed)
+            if stage.output.expect_error:
+                with pytest.raises(errors.TestError) as excinfo:
+                    if not http_ua:
+                        http_ua = http.HttpUA()
+                    start = datetime.datetime.utcnow()
+                    http_ua.send_request(stage.input)
+                    end = datetime.datetime.utcnow()
+                print('\nExpected Error: %s' % str(excinfo))
+            else:
                 if not http_ua:
                     http_ua = http.HttpUA()
                 start = datetime.datetime.utcnow()
                 http_ua.send_request(stage.input)
                 end = datetime.datetime.utcnow()
-            print('\nExpected Error: %s' % str(excinfo))
-        else:
-            if not http_ua:
-                http_ua = http.HttpUA()
-            start = datetime.datetime.utcnow()
-            http_ua.send_request(stage.input)
-            end = datetime.datetime.utcnow()
-        if (stage.output.log_contains_str or
-           stage.output.no_log_contains_str) and logger_obj is not None:
-            logger_obj.set_times(start, end)
-            lines = logger_obj.get_logs()
-            if stage.output.log_contains_str:
-                self.test_log(lines, stage.output.log_contains_str, False)
-            if stage.output.no_log_contains_str:
-                # The last argument means that we should negate the resp
-                self.test_log(lines, stage.output.no_log_contains_str, True)
-        if stage.output.response_contains_str:
-            self.test_response(http_ua.response_object,
-                               stage.output.response_contains_str)
-        if stage.output.status:
-            self.test_status(stage.output.status,
-                             http_ua.response_object.status)
+            if (stage.output.log_contains_str or
+            stage.output.no_log_contains_str) and logger_obj is not None:
+                logger_obj.set_times(start, end)
+                lines = logger_obj.get_logs()
+                if stage.output.log_contains_str:
+                    self.test_log(lines, stage.output.log_contains_str, False)
+                if stage.output.no_log_contains_str:
+                    # The last argument means that we should negate the resp
+                    self.test_log(lines, stage.output.no_log_contains_str, True)
+            if stage.output.response_contains_str:
+                self.test_response(http_ua.response_object,
+                                stage.output.response_contains_str)
+            if stage.output.status:
+                self.test_status(stage.output.status,
+                                http_ua.response_object.status)
+        except:
+            result = False
+
+        return result, '\n'.join(lines)
