@@ -183,39 +183,35 @@ class TestRunner(object):
         result = True
         lines: Any = []
 
-        try:
-            # Send our request (exceptions caught as needed)
-            if stage.output.expect_error:
-                with pytest.raises(errors.TestError) as excinfo:
-                    if not http_ua:
-                        http_ua = http.HttpUA()
-                    start = datetime.datetime.utcnow()
-                    http_ua.send_request(stage.input)
-                    end = datetime.datetime.utcnow()
-                print('\nExpected Error: %s' % str(excinfo))
-            else:
+        # Send our request (exceptions caught as needed)
+        if stage.output.expect_error:
+            with pytest.raises(errors.TestError) as excinfo:
                 if not http_ua:
                     http_ua = http.HttpUA()
                 start = datetime.datetime.utcnow()
                 http_ua.send_request(stage.input)
                 end = datetime.datetime.utcnow()
-            if (stage.output.log_contains_str or
-            stage.output.no_log_contains_str) and logger_obj is not None:
-                logger_obj.set_times(start, end)
-                lines = logger_obj.get_logs()
-                if stage.output.log_contains_str:
-                    self.test_log(lines, stage.output.log_contains_str, False)
-                if stage.output.no_log_contains_str:
-                    # The last argument means that we should negate the resp
-                    self.test_log(lines, stage.output.no_log_contains_str, True)
-            if stage.output.response_contains_str:
-                self.test_response(http_ua.response_object,
-                                stage.output.response_contains_str)
-            if stage.output.status:
-                self.test_status(stage.output.status,
-                                http_ua.response_object.status)
-        except Exception as ext:
-            print("Error:", ext)
-            result = False
+            print('\nExpected Error: %s' % str(excinfo))
+        else:
+            if not http_ua:
+                http_ua = http.HttpUA()
+            start = datetime.datetime.utcnow()
+            http_ua.send_request(stage.input)
+            end = datetime.datetime.utcnow()
+        if (stage.output.log_contains_str or
+        stage.output.no_log_contains_str) and logger_obj is not None:
+            logger_obj.set_times(start, end)
+            lines = logger_obj.get_logs()
+            if stage.output.log_contains_str:
+                self.test_log(lines, stage.output.log_contains_str, False)
+            if stage.output.no_log_contains_str:
+                # The last argument means that we should negate the resp
+                self.test_log(lines, stage.output.no_log_contains_str, True)
+        if stage.output.response_contains_str:
+            self.test_response(http_ua.response_object,
+                            stage.output.response_contains_str)
+        if stage.output.status:
+            self.test_status(stage.output.status,
+                            http_ua.response_object.status)
 
         return result, '\n'.join(lines)

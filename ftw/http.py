@@ -47,11 +47,29 @@ class HttpResponse(object):
         self.CRLF = b'\r\n'
         self.process_response()
 
+    def parse_chunked_data(self, response_data):
+        data = response_data
+        parsed_data = b""
+        while True:
+            # parse chunk size
+            chunk_header, data = data.split(b"\r\n", 1)
+            chunk_size = int(chunk_header, 16)
+            
+            if chunk_size == 0:
+                break
+            
+            # get data of chunk
+            parsed_data += data[:chunk_size]
+            data = data[chunk_size + 2:] # remove \r\n at the begin
+        
+        return parsed_data
+
     def parse_content_encoding(self, response_headers, response_data):
         """
         Parses a response that contains Content-Encoding to retrieve
         response_data
         """
+
         if response_headers['content-encoding'] == 'br':
             try:
                 response_data = brotli.decompress(response_data)
@@ -64,7 +82,6 @@ class HttpResponse(object):
                     })
         elif response_headers['content-encoding'] == 'gzip':
             buf = BytesIO(response_data)
-            buf.read() # remove first line, fix bug fail to decode gzip
             zipbuf = gzip.GzipFile(fileobj=buf)
             try:
                 response_data = zipbuf.read()
@@ -227,6 +244,10 @@ class HttpResponse(object):
                 self.cookiejar.append((cookie, self.dest_addr))
         if data_line is not None and data_line < len(split_response):
             response_data = self.CRLF.join(split_response[data_line:])
+
+        if 'transfer-encoding' in response_headers.keys():
+            if response_headers['transfer-encoding'] == 'chunked':
+                response_data = self.parse_chunked_data(response_data)
 
         # if the output headers say there is encoding
         if 'content-encoding' in response_headers.keys():
