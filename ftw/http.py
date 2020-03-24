@@ -64,6 +64,7 @@ class HttpResponse(object):
                     })
         elif response_headers['content-encoding'] == 'gzip':
             buf = BytesIO(response_data)
+            buf.read() # remove first line, fix bug fail to decode gzip
             zipbuf = gzip.GzipFile(fileobj=buf)
             try:
                 response_data = zipbuf.read()

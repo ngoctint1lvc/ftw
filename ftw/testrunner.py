@@ -214,7 +214,8 @@ class TestRunner(object):
             if stage.output.status:
                 self.test_status(stage.output.status,
                                 http_ua.response_object.status)
-        except:
+        except Exception as ext:
+            print("Error:", ext)
             result = False
 
         return result, '\n'.join(lines)
